@@ -145,9 +145,6 @@ curl -X POST http://127.0.0.1:8000/predict   -H "Content-Type: application/json"
 ```
 
 ## Prochaines étapes
-
-- **SHAP** : interprétabilité fine des prédictions du Random Forest, essentielle en credit scoring pour justifier une décision individuelle
-- **Docker** pour la conteneurisation
 - **Suivi d'expériences** (MLflow ou équivalent léger)
 
 ## Stack technique
