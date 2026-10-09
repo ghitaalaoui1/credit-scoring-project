@@ -73,21 +73,37 @@ Le Random Forest non contraint (profondeur illimitée) obtenait un AUC plus faib
 
 Les deux modèles convergent vers les mêmes variables les plus importantes (`Checking account_none`, `Duration`, `Credit amount`), ce qui renforce la fiabilité de ces signaux.
 
+### Calibration et seuil de décision
+
+Avec `class_weight='balanced'`, le Random Forest surestime le risque : probabilité de défaut moyenne de **44,6 %** pour un taux réel de **30,4 %**. Une calibration sigmoid (Platt scaling, `CalibratedClassifierCV`, cv=5) corrige ce biais sans toucher au classement des clients (l'AUC ne change pas). Sigmoid a été préféré à isotonic, plus sujet au surapprentissage sur 954 lignes.
+
+Des probabilités fiables permettent de fixer le seuil à partir des coûts : selon la matrice de coût du German Credit Data, accorder un prêt à un futur défaut coûte 5 fois plus que refuser un bon payeur, d'où un seuil optimal de 1/(1+5) ≈ **0,167**.
+
+| | p moyenne | Brier | AUC | Coût moyen / client |
+|---|---|---|---|---|
+| Non calibré, seuil 0,5 | 0,446 | 0,195 | 0,770 | 0,618 |
+| Calibré, seuil 0,167 | **0,302** | **0,170** | 0,769 | **0,518** (−16 %) |
+
+![Courbe de calibration](reports/calibration_curve_rf.png)
+
 ## Structure du projet
 
 ```
 credit-scoring-project/
-├── api/                  # (à venir) API FastAPI de scoring
+├── api/
+│   └── main.py            # API FastAPI de scoring
 ├── data/
 │   ├── raw/               # Dataset brut
 │   └── processed/         # Données nettoyées et features
 ├── notebooks/
-│   └── 01_eda.ipynb       # Analyse exploratoire
+│   ├── 01_eda.ipynb       # Analyse exploratoire
+│   └── 02_shap_explainability.ipynb  # Interprétabilité SHAP
 ├── src/
 │   ├── preprocess.py      # Nettoyage (ETL)
 │   ├── features.py        # Feature engineering
 │   ├── train_logistic.py  # Entraînement régression logistique
 │   └── train_rf.py        # Entraînement Random Forest
+├── models/                 # Modèle entraîné (généré par train_rf.py)
 ├── reports/                # Courbes ROC générées
 ├── requirements.txt
 └── README.md
@@ -101,14 +117,36 @@ pip install -r requirements.txt
 python src/preprocess.py
 python src/features.py
 python src/train_logistic.py
-python src/train_rf.py
+python src/train_rf.py     # sauvegarde aussi models/rf_model.joblib
+```
+
+## API de scoring
+
+L'API FastAPI sert le Random Forest entraîné. Elle reçoit les données brutes d'un client et applique le même feature engineering que `features.py`.
+
+```bash
+uvicorn api.main:app --reload
+```
+
+Documentation interactive : http://127.0.0.1:8000/docs
+
+| Méthode | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | État de l'API et du modèle |
+| POST | `/predict` | Score d'un client |
+| POST | `/predict/batch` | Score d'une liste de clients |
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict   -H "Content-Type: application/json"   -d '{"age": 35, "sex": "male", "job": 2, "housing": "own", "saving_accounts": "little", "checking_account": "moderate", "credit_amount": 3000, "duration": 24, "purpose": "car"}'
+```
+
+```json
+{"probability_of_default": 0.3622, "prediction": "default", "decision": "reject", "threshold": 0.1667}
 ```
 
 ## Prochaines étapes
 
 - **SHAP** : interprétabilité fine des prédictions du Random Forest, essentielle en credit scoring pour justifier une décision individuelle
-- **API FastAPI** : endpoint `/predict` pour un scoring en temps réel
-- **Calibration des probabilités** (Platt scaling / isotonic regression)
 - **Docker** pour la conteneurisation
 - **Suivi d'expériences** (MLflow ou équivalent léger)
 
