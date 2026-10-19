@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from typing import Literal
+from typing import Literal, get_args
 
 import joblib
 import pandas as pd
@@ -74,6 +74,22 @@ class CreditApplication(BaseModel):
     ]
 
 
+CATEGORICAL_COLUMNS = {
+    "Sex": "sex",
+    "Housing": "housing",
+    "Saving accounts": "saving_accounts",
+    "Checking account": "checking_account",
+    "Purpose": "purpose",
+}
+
+# Categories de reference supprimees par drop_first=True dans features.py :
+# pandas trie les categories, c'est donc la premiere par ordre alphabetique.
+REFERENCE_COLUMNS = {
+    f"{column}_{min(get_args(CreditApplication.model_fields[field].annotation))}"
+    for column, field in CATEGORICAL_COLUMNS.items()
+}
+
+
 class ScoringResult(BaseModel):
     probability_of_default: float
     prediction: Literal["good", "default"]
@@ -103,6 +119,17 @@ def build_features(applications: list[CreditApplication]) -> pd.DataFrame:
     # Pas de drop_first ici : le reindex supprime les categories de reference
     # et ajoute (a 0) celles absentes du lot.
     df_encoded = pd.get_dummies(df)
+
+    unexpected = sorted(set(df_encoded.columns) - set(artifacts["feature_columns"]) - REFERENCE_COLUMNS)
+    if unexpected:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "L'API et le modele ont diverge : colonnes produites mais inconnues "
+                f"du modele -> {unexpected}. Reentrainez le modele ou alignez features.py."
+            ),
+        )
+
     return df_encoded.reindex(columns=artifacts["feature_columns"], fill_value=0)
 
 
