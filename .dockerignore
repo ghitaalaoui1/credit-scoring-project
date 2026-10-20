@@ -1,0 +1,9 @@
+.venv/
+.git/
+.vscode/
+notebooks/
+reports/
+data/
+tests/
+__pycache__/
+*.pyc
