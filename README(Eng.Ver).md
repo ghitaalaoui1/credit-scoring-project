@@ -50,7 +50,15 @@ One of the core challenges of this project was identifying a **data leakage** pr
 3. The dataset was replaced with a version containing the real historical target (`Credit Risk`), and both faulty blocks were removed.
 4. A more rigorous approach to missing values was also implemented: `Saving accounts` and `Checking account` had ~55% of their `NA`s dropped by an initial `dropna()`, causing a loss of 46% of the dataset's rows and distorting the class ratio (70/30 → 55/45). These `NA`s actually reflect the absence of that account type for the client, not missing data — they were therefore replaced with an explicit `"none"` category instead of being dropped.
 
-After the fix, the logistic regression model achieves a ROC-AUC of **0.756**, consistent with published benchmarks for this dataset.
+After the fix, the headline metric is the average cost per client on the test set, using the German Credit Data cost matrix (lending to a future defaulter costs 5, rejecting a good payer costs 1):
+
+| Policy | Average cost |
+|---|---|
+| Accept everyone | 1.518 |
+| Reject everyone | 0.696 |
+| **Model, threshold 0.1667** | **0.518** |
+
+That is **26% lower cost** than the best trivial policy. Second, the ROC-AUC scores (0.756 for logistic regression, 0.770 for the Random Forest) are consistent with published benchmarks for this dataset.
 
 ## Exploratory analysis — key findings
 
@@ -145,6 +153,7 @@ curl -X POST http://127.0.0.1:8000/predict   -H "Content-Type: application/json"
 
 ## Next steps
 - **Experiment tracking** (MLflow or a lightweight equivalent)
+- **Amount-dependent threshold**: the cost matrix assumes a 5-to-1 ratio regardless of the loan amount, yet a default on 20,000 obviously does not cost the same as a default on 1,000. The complete version would be a threshold that depends on the amount, meaning one threshold per application rather than a single global threshold.
 
 ## Tech stack
 

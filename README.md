@@ -51,7 +51,15 @@ Un des enjeux principaux de ce projet a été la détection d'une **fuite de don
 3. Le dataset a été remplacé par une version contenant la vraie cible historique (`Credit Risk`), et les deux blocs fautifs ont été supprimés.
 4. Un traitement plus rigoureux des valeurs manquantes a aussi été mis en place : `Saving accounts` et `Checking account` avaient ~55% de leurs `NA` supprimés par un `dropna()` initial, ce qui faisait perdre 46% des lignes du dataset et déformait le ratio de classes (70/30 → 55/45). Ces `NA` reflètent en réalité l'absence du type de compte chez le client, pas une donnée manquante — ils ont donc été remplacés par la catégorie explicite `"none"` plutôt que supprimés.
 
-Après correction, le modèle de régression logistique obtient un AUC-ROC de **0.756**, cohérent avec les benchmarks publiés sur ce dataset.
+Après correction, l'indicateur principal est le coût moyen par client sur le jeu de test, avec la matrice de coûts du German Credit Data (accorder un prêt à un futur défaut coûte 5, refuser un bon payeur coûte 1) :
+
+| Politique | Coût moyen |
+|---|---|
+| Accepter tout le monde | 1,518 |
+| Refuser tout le monde | 0,696 |
+| **Modèle, seuil 0,1667** | **0,518** |
+
+Soit **26 % de coût en moins** que la meilleure politique triviale. En second, les AUC-ROC (0,756 pour la régression logistique, 0,770 pour le Random Forest) sont cohérents avec les benchmarks publiés sur ce dataset.
 
 ## Analyse exploratoire — principaux enseignements
 
@@ -146,6 +154,7 @@ curl -X POST http://127.0.0.1:8000/predict   -H "Content-Type: application/json"
 
 ## Prochaines étapes
 - **Suivi d'expériences** (MLflow ou équivalent léger)
+- **Seuil dépendant du montant** : la matrice de coûts suppose un rapport de 5 pour 1 quel que soit le montant, alors qu'un défaut sur 20 000 ne coûte évidemment pas la même chose qu'un défaut sur 1 000. La version aboutie serait un seuil qui dépend du montant, donc un seuil par dossier plutôt qu'un seuil global.
 
 ## Stack technique
 
