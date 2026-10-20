@@ -1,5 +1,6 @@
 __pycache__/
-models/
+models/*
+!models/rf_model.joblib
 
 .vscode/
 .venv/
